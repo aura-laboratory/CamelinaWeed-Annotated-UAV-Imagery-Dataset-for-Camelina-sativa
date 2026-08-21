@@ -122,16 +122,33 @@ The following tables summarize the main flight and imaging parameters used durin
 
 ## Dataset Evaluation
 
-To provide a baseline evaluation of the proposed UAV weed detection dataset, the RT-DETR-L object detection model was trained to detect two weed categories: broadleaf and narrowleaf weeds. The following table reports the main evaluation metrics obtained after training RT-DETR-L for 200 epochs using tiled image patches with an input resolution of 768 × 768 pixels.
+Representative object-detection and instance-segmentation models were evaluated to demonstrate the practical usability of the dataset. A flight-wise split was used to prevent data leakage between overlapping UAV images.
+### Object Detection Results
 
-| Metric | Value |
-|:---:|:---:|
-| Precision | 0.895 |
-| Recall | 0.842 |
-| F1-score | 0.870 |
-| mAP@50 | 0.892 |
-| mAP@50–95 | 0.704 |
-| Inference speed | 9.8 ms/image |
+| Model | Class | Precision | Recall | F1-score | AP@50 | AP@50–95 | Processing time (ms/tile) |
+|:---|:---|---:|---:|---:|---:|---:|---:|
+| RT-DETR-L | Broadleaf | 0.846 | 0.813 | 0.829 | 0.792 | 0.710 | 9.20 |
+| RT-DETR-L | Narrowleaf | 0.878 | 0.821 | 0.849 | 0.841 | 0.723 | 9.18 |
+| RT-DETR-L | **Macro average** | **0.862** | **0.817** | **0.839** | **0.817** | **0.717** | **9.19** |
+| YOLO26m | Broadleaf | 0.809 | 0.701 | 0.751 | 0.771 | 0.630 | 6.31 |
+| YOLO26m | Narrowleaf | 0.824 | 0.784 | 0.804 | 0.835 | 0.670 | 6.30 |
+| YOLO26m | **Macro average** | **0.817** | **0.743** | **0.777** | **0.803** | **0.650** | **6.30** |
+| YOLO26n | Broadleaf | 0.731 | 0.649 | 0.688 | 0.721 | 0.550 | 4.20 |
+| YOLO26n | Narrowleaf | 0.811 | 0.724 | 0.765 | 0.774 | 0.590 | 4.21 |
+| YOLO26n | **Macro average** | **0.771** | **0.687** | **0.726** | **0.748** | **0.570** | **4.20** |
+| Faster R-CNN ResNet-50-FPN | Broadleaf | 0.782 | 0.669 | 0.721 | 0.730 | 0.510 | 19.00 |
+| Faster R-CNN ResNet-50-FPN | Narrowleaf | 0.811 | 0.745 | 0.777 | 0.760 | 0.580 | 19.00 |
+| Faster R-CNN ResNet-50-FPN | **Macro average** | **0.797** | **0.707** | **0.749** | **0.745** | **0.545** | **19.00** |
+
+
+### Instance Segmentation Results
+
+| Model | Class | Mask Precision | Mask Recall | Mask F1-score | Mask AP@50 | Mask AP@50–95 | Processing time (ms/tile) |
+|:---|:---|---:|---:|---:|---:|---:|---:|
+| YOLO26n-seg | Broadleaf | 0.740 | 0.630 | 0.681 | 0.664 | 0.490 | 3.30 |
+| YOLO26n-seg | Narrowleaf | 0.790 | 0.680 | 0.731 | 0.748 | 0.510 | 3.30 |
+| YOLO26n-seg | **Macro average** | **0.765** | **0.655** | **0.706** | **0.706** | **0.500** | **3.30** |
+
 
 ## Dataset Structure
 
@@ -211,33 +228,79 @@ python scripts/visualize_annotations.py \
   --save
 ```
 
-### 2. Prepare Dataset for YOLO Training
+### 2. Prepare and Evaluate Detection and Segmentation Datasets
 
-`prepare_dataset.py` converts COCO polygon annotations into YOLO-compatible detection or segmentation datasets. The script automatically creates train/validation/test splits, generates YOLO label files, and creates a `data.yaml` configuration file.
+`prepare_dataset.py` provides a unified workflow for preparing, training, and evaluating weed-detection and instance-segmentation experiments. Users can select one or more acquisition folders and define random, folder-wise, flight-wise, field-wise, season-wise, or manually specified train/validation/test splits.
 
-Run for YOLO segmentation:
+For object detection, COCO polygon annotations are converted into axis-aligned bounding boxes. For instance segmentation, the original polygon boundaries are retained and converted into YOLO segmentation labels. In both cases, the split is performed before the images are divided into 768 × 768 tiles.
 
-```bash
-python prepare_dataset.py \
-  --input "Summer 2025/Thessaloniki/Phantom Flight at 10 m Altitude/Annotated" \
-  --output prepared_dataset \
-  --task segmentation
-```
+The script also supports configurable sampling of weed-negative training images. Available values include `0`, `0.10`, `0.15`, or `all`. Negative-image sampling is applied only to the training subset, while all available negative images are retained in validation and test subsets for false-positive evaluation.
 
-Run for YOLO detection:
+List the available acquisition folders:
 
 ```bash
-python prepare_dataset.py \
-  --input "Summer 2025/Thessaloniki/Phantom Flight at 10 m Altitude/Annotated" \
-  --output prepared_dataset_detection \
-  --task detection
+python prepare_dataset.py list-folders \
+  --input "/path/to/CamelinaWeed"
 ```
 
-Run recursively for all annotated folders:
+Prepare an object-detection dataset:
 
 ```bash
-python prepare_dataset.py \
-  --input "." \
-  --output prepared_dataset \
-  --task segmentation
+python prepare_dataset.py prepare \
+  --input "/path/to/CamelinaWeed" \
+  --output prepared_detection_dataset \
+  --task detection \
+  --split-strategy manual \
+  --manual-split split_config.json \
+  --class-map class_map.json \
+  --negative-ratio 0.15 \
+  --tile-size 768 \
+  --tile-overlap 0.20
 ```
+
+Train and compare the supported detection models:
+
+```bash
+python prepare_dataset.py train \
+  --dataset prepared_detection_dataset \
+  --output detection_results \
+  --models yolo yolo_light fasterrcnn rtdetr \
+  --seeds 42 52 62 \
+  --group-metrics flight \
+  --device 0
+```
+
+The supported object-detection models are YOLO, lightweight YOLO, Faster R-CNN, and RT-DETR. Evaluation results include class-wise and macro-averaged precision, recall, F1-score, AP@50, and AP@50:95 for broadleaf and narrowleaf weeds. Results can be grouped by flight, field, or season and summarized across repeated runs using the mean and standard deviation.
+
+Prepare a separate instance-segmentation dataset:
+
+```bash
+python prepare_dataset.py prepare \
+  --input "/path/to/CamelinaWeed" \
+  --output prepared_segmentation_dataset \
+  --task segmentation \
+  --split-strategy manual \
+  --manual-split split_config.json \
+  --class-map class_map.json \
+  --negative-ratio 0.15 \
+  --tile-size 768 \
+  --tile-overlap 0.20
+```
+
+Train the YOLO instance-segmentation baseline:
+
+```bash
+python prepare_dataset.py train \
+  --dataset prepared_segmentation_dataset \
+  --output segmentation_results \
+  --models yolo_seg \
+  --seg-weights yolo26n-seg.pt \
+  --seg-epochs 200 \
+  --seg-batch 4 \
+  --seeds 42 52 62 \
+  --device 0
+```
+
+The segmentation evaluation reports class-wise and macro-averaged mask precision, recall, F1-score, AP@50, and AP@50:95 for broadleaf and narrowleaf weeds.
+
+Detection and segmentation experiments require separate prepared datasets because their annotation formats differ. Random image-level splitting is available only for exploratory analysis. Flight-wise, field-wise, season-wise, or manually defined held-out splits are recommended for reported experiments to prevent data leakage between overlapping UAV images.
