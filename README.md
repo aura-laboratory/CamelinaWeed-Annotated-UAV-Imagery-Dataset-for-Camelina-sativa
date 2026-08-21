@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://doi.org/10.5281/zenodo.20148697"><b>Dataset</b></a> ·
-  <a href="PAPER_LINK"><b>Paper</b></a> ·
+  <a href="[PAPER_LINK](https://doi.org/10.1016/j.dib.2026.113135)"><b>Paper</b></a> ·
   <a href="https://doi.org/10.5281/zenodo.20148697"><b>DOI</b></a>
 </p>
 
