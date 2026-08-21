@@ -1,0 +1,15 @@
+{
+  "train": [
+    "Summer 2025/Thessaloniki/Phantom flight at 5 m altitude",
+    "Summer 2025/Thessaloniki/Phantom flight at 10 m altitude",
+    "Winter 2025-2026/Thessaloniki/Phantom flight at 3 m altitude",
+    "Winter 2025-2026/Thessaloniki/Mavic 3M flight 1 at 2 m altitude"
+  ],
+  "val": [
+    "Winter 2025-2026/Thessaloniki/Mavic 3M flight 2 at 2 m altitude"
+  ],
+  "test": [
+    "Winter 2025-2026/Chalkidiki/Phantom flight at 3 m altitude",
+    "Winter 2025-2026/Chalkidiki/Phantom flight at 5 m altitude"
+  ]
+}
